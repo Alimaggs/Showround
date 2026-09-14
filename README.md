@@ -16,6 +16,33 @@ Both carry an icon chosen from a shared set of twelve (defined in
 later in the inspector. The same definitions are injected into the exported
 player, so a published tour draws the identical icons.
 
+## Pin colours
+
+Colour is a property of the tour rather than of each interaction: one colour
+for hotspots, one for info points, set in Tour settings. That keeps a tour
+looking like a set rather than a bag of differently coloured markers, and it
+means recolouring is one decision instead of one per pin.
+
+`src/pin-colors.js` holds eight presets, but any hex code is accepted, so the
+icon's colour is calculated rather than chosen: `inkFor` picks whichever of
+near-black or white contrasts better against the background. It compares
+contrast ratios rather than using a brightness threshold, because a threshold
+gets the brand orange wrong. Orange is bright enough to look light, yet white
+on it reaches only about 3:1 where near-black reaches 6:1.
+
+The editor resolves both background and ink into the manifest at export:
+
+```json
+"theme": {
+  "hotspot": { "background": "#eeff66", "ink": "#171b1c" },
+  "info":    { "background": "#62c2cc", "ink": "#171b1c" }
+}
+```
+
+A published tour then only has to apply those values, with no contrast maths
+of its own. Manifests without a `theme`, which is every export made before
+this, fall back to the original lime and aqua.
+
 ## Embedding
 
 Every export contains `embed.html` alongside `index.html`. It is the same

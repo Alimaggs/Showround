@@ -4,6 +4,7 @@ import threeSource from '../node_modules/three/build/three.module.min.js?raw'
 import threeCoreSource from '../node_modules/three/build/three.core.min.js?raw'
 import { embedHtml, exportReadme, playerHtml, playerScript, playerStyles } from './export-player.js'
 import { defaultHotspotIcon, defaultInfoIcon, pinIcons, pinIconSvg } from './pin-icons.js'
+import { defaultTheme, inkFor, normalizeHex, pinStyle, presetColors, themeFrom } from './pin-colors.js'
 import { currentRelease, releases } from './changelog.js'
 import './style.css'
 
@@ -16,6 +17,7 @@ const icons = {
   export: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v12m0 0 5-5m-5 5-5-5M5 19h14"/></svg>',
   embed: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 7-5 5 5 5M16 7l5 5-5 5M13.6 4.5l-3.2 15"/></svg>',
   import: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V8m0 0 5 5m-5-5-5 5M5 4h14"/></svg>',
+  settings: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M19 6h1M4 12h3M13 12h7M4 18h9M19 18h1"/><circle cx="16" cy="6" r="2.2"/><circle cx="10" cy="12" r="2.2"/><circle cx="16" cy="18" r="2.2"/></svg>',
   megaphone: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.6v4.8a1.6 1.6 0 0 0 1.6 1.6h2.2l7.6 4.3V3.7L7.8 8H5.6A1.6 1.6 0 0 0 4 9.6z"/><path d="M7.8 16v3a2 2 0 0 0 4 0v-.9M19 9.4a4.2 4.2 0 0 1 0 5.2"/></svg>',
   more: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>',
   chevron: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>',
@@ -33,6 +35,7 @@ const state = {
   previewMode: false,
   pendingPoint: null,
   pendingIcon: defaultHotspotIcon,
+  theme: { ...defaultTheme },
   pendingImport: null,
   renderer: null,
 }
@@ -56,7 +59,7 @@ document.querySelector('#app').innerHTML = `
       <button class="button secondary" id="import-tour">${icons.import} Import</button>
       <button class="button primary" id="export-tour">${icons.export} Export tour</button>
       <button class="icon-button whats-new-button" id="whats-new" aria-label="What's new in Showround">${icons.megaphone}</button>
-      <button class="icon-button" aria-label="More options">${icons.more}</button>
+      <button class="icon-button" id="tour-settings" aria-label="Tour settings">${icons.settings}</button>
     </div>
   </header>
 
@@ -212,6 +215,32 @@ document.querySelector('#app').innerHTML = `
       </div>
     </form>
   </dialog>
+  <dialog id="settings-dialog">
+    <form method="dialog">
+      <div class="dialog-icon">${icons.settings}</div>
+      <h2>Tour settings</h2>
+      <p>Pin colours apply to every interaction in this tour. Pick a preset or type any hex code.</p>
+      <div class="theme-field">
+        <span class="pin-field-title">Hotspots</span>
+        <div class="color-picker" id="hotspot-swatches"></div>
+        <div class="color-custom">
+          <span class="color-preview" id="hotspot-preview"></span>
+          <input id="hotspot-hex" maxlength="7" spellcheck="false" autocomplete="off" aria-label="Hotspot colour hex code">
+        </div>
+      </div>
+      <div class="theme-field">
+        <span class="pin-field-title">Info points</span>
+        <div class="color-picker" id="info-swatches"></div>
+        <div class="color-custom">
+          <span class="color-preview" id="info-preview"></span>
+          <input id="info-hex" maxlength="7" spellcheck="false" autocomplete="off" aria-label="Info point colour hex code">
+        </div>
+      </div>
+      <div class="dialog-actions">
+        <button class="button primary" value="default">Done</button>
+      </div>
+    </form>
+  </dialog>
   <dialog id="whats-new-dialog">
     <form method="dialog">
       <div class="dialog-icon">${icons.megaphone}</div>
@@ -312,6 +341,46 @@ function escapeAttr(value) {
 
 function iconFor(interaction) {
   return interaction?.icon || (interaction?.type === 'info' ? defaultInfoIcon : defaultHotspotIcon)
+}
+
+function themeColorFor(interaction) {
+  return interaction?.type === 'info' ? state.theme.info : state.theme.hotspot
+}
+
+function renderThemeControls() {
+  ;['hotspot', 'info'].forEach((kind) => {
+    const current = state.theme[kind]
+    $(`#${kind}-swatches`).innerHTML = presetColors.map((preset) => `
+      <button type="button" class="color-choice ${preset.value === current ? 'selected' : ''}" data-color="${preset.value}" title="${preset.label}" aria-label="${preset.label}" aria-pressed="${preset.value === current}"><span style="background:${preset.value}"></span></button>
+    `).join('')
+
+    // Leave the field alone while it is being typed into, otherwise rewriting
+    // the value fights the person editing it.
+    const field = $(`#${kind}-hex`)
+    if (document.activeElement !== field) {
+      field.value = current
+      field.classList.remove('invalid')
+    }
+
+    const preview = $(`#${kind}-preview`)
+    preview.setAttribute('style', pinStyle(current))
+    preview.innerHTML = pinIconSvg(kind === 'info' ? defaultInfoIcon : defaultHotspotIcon)
+  })
+}
+
+function applyThemeColor(kind, value) {
+  const color = normalizeHex(value)
+  if (!color) return false
+  state.theme[kind] = color
+  renderThemeControls()
+  renderHotspots()
+  renderInspectorOverview()
+  return true
+}
+
+function openSettings() {
+  renderThemeControls()
+  $('#settings-dialog').showModal()
 }
 
 function renderIconPicker(container, selected) {
@@ -521,7 +590,7 @@ function renderHotspots() {
 
   $('#hotspot-layer').innerHTML = scene.hotspots.map((hotspot) => `
     <button class="viewer-hotspot ${hotspot.type === 'info' ? 'info-point' : ''} ${hotspot.id === state.activeHotspotId ? 'selected' : ''}" data-hotspot="${hotspot.id}" title="${escapeHtml(hotspot.label)}">
-      <span>${pinIconSvg(iconFor(hotspot))}</span>
+      <span style="${pinStyle(themeColorFor(hotspot))}">${pinIconSvg(iconFor(hotspot))}</span>
       ${hotspot.type === 'info'
         ? `<span class="info-card"><b>${escapeHtml(hotspot.label)}</b><p>${escapeHtml(hotspot.description || '')}</p></span>`
         : `<b>${escapeHtml(hotspot.label)}</b>`}
@@ -625,7 +694,7 @@ function renderInspectorOverview() {
   $('#interaction-index').innerHTML = scene.hotspots.map((interaction) => `
     <div class="interaction-index-row ${interaction.id === state.activeHotspotId ? 'selected' : ''}">
       <button class="interaction-index-edit" data-inspector-interaction="${interaction.id}" aria-label="Edit ${escapeHtml(interaction.label)}">
-        <i>${pinIconSvg(iconFor(interaction))}</i>
+        <i style="${pinStyle(themeColorFor(interaction))}">${pinIconSvg(iconFor(interaction))}</i>
         <span><strong>${escapeHtml(interaction.label)}</strong><small>${interaction.type === 'info' ? 'Info point' : 'Linked hotspot'}</small></span>
         ${icons.chevron}
       </button>
@@ -1034,7 +1103,12 @@ async function readTourZip(file) {
     })
   }
 
-  return { name: manifest.name, entrySceneId: manifest.entrySceneId, scenes }
+  const theme = themeFrom({
+    hotspot: manifest.theme?.hotspot?.background,
+    info: manifest.theme?.info?.background,
+  })
+
+  return { name: manifest.name, entrySceneId: manifest.entrySceneId, theme, scenes }
 }
 
 async function applyImportedTour(file) {
@@ -1050,6 +1124,7 @@ async function applyImportedTour(file) {
     state.activeSceneId = null
     state.activeHotspotId = null
     state.projectName = tour.name || 'Imported tour'
+    state.theme = tour.theme
     $('#project-name').value = state.projectName
 
     for (const scene of state.scenes) {
@@ -1106,9 +1181,15 @@ async function exportTour() {
     return { id, kind: kind || 'video', name, fileName, src: `./media/${exportName}`, duration, hotspots }
   })
 
+  // Ink is resolved here rather than in the player, so a published tour does
+  // not have to carry the contrast maths just to draw two discs.
   const manifest = {
     version: 2,
     name: state.projectName,
+    theme: {
+      hotspot: { background: state.theme.hotspot, ink: inkFor(state.theme.hotspot) },
+      info: { background: state.theme.info, ink: inkFor(state.theme.info) },
+    },
     entrySceneId: state.scenes[0].id,
     scenes: exportedScenes,
   }
@@ -1200,6 +1281,20 @@ function bindEvents() {
   bindIconPicker($('#new-info-icon-picker'), (icon) => { state.pendingIcon = icon })
   bindCharCount('#hotspot-description', '#hotspot-description-count')
   bindCharCount('#new-info-description', '#new-info-description-count')
+  $('#tour-settings').addEventListener('click', openSettings)
+  ;['hotspot', 'info'].forEach((kind) => {
+    $(`#${kind}-swatches`).addEventListener('click', (event) => {
+      const choice = event.target.closest('[data-color]')
+      if (!choice) return
+      event.preventDefault()
+      applyThemeColor(kind, choice.dataset.color)
+    })
+    $(`#${kind}-hex`).addEventListener('input', (event) => {
+      const applied = applyThemeColor(kind, event.target.value)
+      event.target.classList.toggle('invalid', !applied && event.target.value.trim() !== '')
+    })
+    $(`#${kind}-hex`).addEventListener('blur', renderThemeControls)
+  })
   $('#embed-tour').addEventListener('click', openEmbedDialog)
   $('#whats-new').addEventListener('click', openWhatsNew)
   $('#copy-embed').addEventListener('click', copyEmbedCode)

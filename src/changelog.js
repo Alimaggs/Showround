@@ -7,6 +7,15 @@
 
 export const releases = [
   {
+    version: '0.5.0',
+    date: '2026-09-14',
+    title: 'Choose your pin colours',
+    notes: [
+      'A new Tour settings button sets the colour of your hotspots and your info points across the whole tour. Pick one of eight presets or type any hex code.',
+      'Colours carry through to published and embedded tours. Tours you made earlier keep the colours they already had.',
+    ],
+  },
+  {
     version: '0.4.1',
     date: '2026-09-03',
     title: 'Notes stay in the picture',

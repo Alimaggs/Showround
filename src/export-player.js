@@ -75,6 +75,11 @@ export const embedHtml = `<!doctype html>
 export const playerScript = `import * as THREE from './three.module.js';
 
 const PIN_ICONS = __PIN_ICONS__;
+// The editor resolves both the background and a readable ink for each type,
+// so this only has to apply them. Older manifests have no theme, hence the
+// original colours as the fallback.
+const DEFAULT_THEME={hotspot:{background:'#eeff66',ink:'#171b1c'},info:{background:'#62c2cc',ink:'#171b1c'}};
+const pinStyle=info=>{const t=(tour&&tour.theme?tour.theme:DEFAULT_THEME)[info?'info':'hotspot']||DEFAULT_THEME[info?'info':'hotspot'];return 'background:'+t.background+';color:'+t.ink};
 const pinIcon=(name,fallback)=>'<svg class="pin-icon" viewBox="0 0 24 24" aria-hidden="true">'+(PIN_ICONS[name]||PIN_ICONS[fallback]||PIN_ICONS.arrow||'')+'</svg>';
 
 const viewer=document.querySelector('#viewer'),hotspotLayer=document.querySelector('#hotspots');
@@ -152,7 +157,7 @@ function showPhoto(target,source){
 function renderHotspots(){
   hotspotLayer.innerHTML=(currentScene.hotspots||[]).map(point=>{
     const info=point.type==='info';
-    return '<button class="hotspot '+(info?'info':'link')+'" data-id="'+point.id+'"><i>'+pinIcon(point.icon,info?'info':'arrow')+'</i><span class="card"><strong>'+escapeHtml(point.label)+'</strong>'+(info?'<p>'+escapeHtml(point.description||'')+'</p>':'')+'</span></button>';
+    return '<button class="hotspot '+(info?'info':'link')+'" data-id="'+point.id+'"><i style="'+pinStyle(info)+'">'+pinIcon(point.icon,info?'info':'arrow')+'</i><span class="card"><strong>'+escapeHtml(point.label)+'</strong>'+(info?'<p>'+escapeHtml(point.description||'')+'</p>':'')+'</span></button>';
   }).join('');
   hotspotLayer.querySelectorAll('.hotspot').forEach(button=>button.addEventListener('click',()=>{
     const point=currentScene.hotspots.find(item=>item.id===button.dataset.id);
