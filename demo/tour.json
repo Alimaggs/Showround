@@ -1,0 +1,38 @@
+{
+  "version": 2,
+  "name": "Rafters Cottage",
+  "entrySceneId": "lounge",
+  "theme": {
+    "hotspot": { "background": "#eeff66", "ink": "#171b1c" },
+    "info": { "background": "#62c2cc", "ink": "#171b1c" }
+  },
+  "scenes": [
+    {
+      "id": "lounge",
+      "kind": "photo",
+      "name": "Lounge",
+      "fileName": "lounge.jpg",
+      "src": "./media/lounge.jpg",
+      "duration": 0,
+      "hotspots": [
+        { "id": "lounge-door", "type": "hotspot", "label": "Through to the bedroom", "targetSceneId": "bedroom", "icon": "door", "time": 0, "yaw": -117, "pitch": -5 },
+        { "id": "lounge-kitchen", "type": "info", "label": "Kitchen", "description": "Open to the lounge, up one step. This is an info point: a short note pinned to whatever you're looking at.", "icon": "kitchen", "time": 0, "yaw": 36, "pitch": -3 },
+        { "id": "lounge-fire", "type": "info", "label": "Fireplace", "description": "An open fire in the corner of the room. A note like this can run to 240 characters.", "icon": "star", "time": 0, "yaw": -48, "pitch": -3 },
+        { "id": "lounge-garden", "type": "info", "label": "Garden doors", "description": "A tour can carry on outside. Add another photo and link it with a hotspot.", "icon": "tree", "time": 0, "yaw": 94, "pitch": -3 }
+      ]
+    },
+    {
+      "id": "bedroom",
+      "kind": "photo",
+      "name": "Bedroom",
+      "fileName": "bedroom.jpg",
+      "src": "./media/bedroom.jpg",
+      "duration": 0,
+      "hotspots": [
+        { "id": "bedroom-door", "type": "hotspot", "label": "Back to the lounge", "targetSceneId": "lounge", "icon": "door", "time": 0, "yaw": 128, "pitch": -7 },
+        { "id": "bedroom-bed", "type": "info", "label": "Bedroom in the eaves", "description": "You got here through a hotspot. The menu in the top corner jumps between rooms too.", "icon": "bed", "time": 0, "yaw": 13, "pitch": -11 },
+        { "id": "bedroom-window", "type": "info", "label": "The view", "description": "In a 360° photo the view from the window comes for free.", "icon": "eye", "time": 0, "yaw": -76, "pitch": 6 }
+      ]
+    }
+  ]
+}

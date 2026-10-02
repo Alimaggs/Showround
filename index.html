@@ -1,15 +1,15 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-GB">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <meta name="theme-color" content="#f17022" />
-    <meta name="description" content="Showround turns 360° photos and video into guided virtual tours you can embed anywhere. Built in the browser, by Chaos Created." />
-    <meta property="og:title" content="Showround — 360° virtual tours" />
-    <meta property="og:description" content="Turn 360° photos and video into a tour people can walk through. Build it in the browser, then embed it anywhere." />
+    <meta name="description" content="Turn 360° photos and video into a virtual tour people can walk through. Made for schools, estate agents, venues and holiday lets. No account needed." />
+    <meta property="og:title" content="Showround: 360° virtual tours for your website" />
+    <meta property="og:description" content="Show people round before they visit. Build a 360° tour in your browser and put it on your website." />
     <meta property="og:type" content="website" />
-    <title>Showround — 360° virtual tours</title>
+    <title>Showround: 360° virtual tours for your website</title>
     <link rel="stylesheet" href="./src/landing.css" />
   </head>
   <body>
@@ -29,91 +29,180 @@
           <span class="brand-endorsement">by Chaos Created</span>
         </span>
       </a>
+      <nav class="bar-links" aria-label="On this page">
+        <a href="#who">Who it's for</a>
+        <a href="#how">How it works</a>
+        <a href="#questions">Questions</a>
+      </nav>
       <a class="button primary" href="./app/">Open the editor</a>
     </header>
 
     <main>
       <section class="hero">
+        <div class="rings" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
         <p class="eyebrow">360° virtual tours</p>
-        <h1>Show the place, not the floor plan</h1>
+        <h1>Show them round before they've left the sofa</h1>
+        <p class="made-for">
+          Made for
+          <span class="rotator" id="rotator" aria-hidden="true">estate agents</span>
+          <span class="visually-hidden">estate agents, schools, wedding venues, holiday lets, museums and showrooms</span>
+        </p>
         <p class="lede">
-          Turn 360° photos and video into a tour someone can actually walk
-          through. Build it in your browser, then drop it into any web page.
+          Showround turns 360° photos and video into a tour people can walk
+          through from wherever they are. You build it in your browser, add
+          signposts and notes, then put it on your website.
         </p>
         <div class="hero-actions">
           <a class="button primary large" href="./app/">Open the editor</a>
-          <a class="button ghost large" href="#how">See how it works</a>
+          <a class="button ghost large" href="#demo">Try the demo</a>
         </div>
-        <p class="footnote">No account needed. Nothing to install.</p>
+        <p class="footnote">No account. Nothing to install. Your photos stay on your computer.</p>
       </section>
 
-      <figure class="viewer showcase">
-        <img
-          src="./src/assets/hero-lounge-1600.jpg"
-          srcset="./src/assets/hero-lounge-800.jpg 800w, ./src/assets/hero-lounge-1600.jpg 1600w"
-          sizes="(max-width: 1040px) 100vw, 980px"
-          width="1600"
-          height="900"
-          decoding="async"
-          alt="A double-height lounge with floor to ceiling windows, shown as a scene inside a Showround tour"
-        />
-        <span class="pin pin-link" style="left: 22%; top: 62%" aria-hidden="true">
-          <i class="pin-dot"><svg viewBox="0 0 24 24"><path d="M7 21V4h10v17M4 21h16M13.6 12.4h.01" /></svg></i>
-          <span class="pin-label">Into the meeting room</span>
-        </span>
-        <span class="pin pin-info" style="left: 71%; top: 34%" aria-hidden="true">
-          <i class="pin-dot"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 11.2v5M12 7.9h.01" /></svg></i>
-        </span>
-        <span class="viewer-hint" aria-hidden="true">Drag to look around</span>
-      </figure>
+      <section class="demo" id="demo" data-reveal>
+        <span class="sticker" aria-hidden="true">Live demo.<br />Drag it!</span>
+        <div class="demo-frame">
+          <p class="demo-loading" id="demo-loading">Loading the tour…</p>
+          <iframe id="demo-tour" title="A live Showround tour of a cottage lounge and bedroom" data-src="./demo/embed.html" allowfullscreen></iframe>
+        </div>
+        <p class="demo-caption">
+          This is a real tour, running in the same player your visitors would
+          use. Drag to look around and tap a pin to see what it does. The door
+          to the bedroom is over your left shoulder.
+        </p>
+        <noscript><p class="demo-caption"><a href="./demo/">Open the demo tour</a></p></noscript>
+      </section>
 
-      <section class="features">
-        <article>
-          <h2>Photos and video, together</h2>
-          <p>
-            Drop in equirectangular stills or 360° footage. One tour can mix
-            both, so a quick photo of the utility room sits happily next to a
-            walkthrough of the garden.
-          </p>
-        </article>
-        <article>
-          <h2>Point the way</h2>
-          <p>
-            Place hotspots to move between rooms, and info points to explain
-            what someone is looking at. Twelve icons to choose from, so a door
-            looks like a door.
-          </p>
-        </article>
-        <article>
-          <h2>Embed it anywhere</h2>
-          <p>
-            Export a self-contained tour and host it yourself, or copy the
-            embed code straight into a property listing, a venue page, or your
-            own site.
-          </p>
-        </article>
+      <section class="who" id="who">
+        <h2 data-reveal>Who it's for</h2>
+        <p class="section-lede" data-reveal>
+          Anyone who gets asked "can I come and have a look?" more often than
+          they have time for.
+        </p>
+        <div class="who-grid">
+          <article data-reveal style="--tint: #eeff66">
+            <span class="who-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 21V4h10v17M4 21h16M13.6 12.4h.01" /></svg></span>
+            <h3>Estate and letting agents</h3>
+            <p>Buyers walk the house before they book a viewing. The ones who do turn up have already seen the box room and still want it.</p>
+          </article>
+          <article data-reveal style="--tint: #62c2cc">
+            <span class="who-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m2 9 10-5 10 5-10 5z" /><path d="M6 11.2V16c2.2 2 9.8 2 12 0v-4.8M22 9v6" /></svg></span>
+            <h3>Schools and nurseries</h3>
+            <p>Open evening happens once a year. A tour is there every day for the parents who couldn't come, and for the child who wants to see their classroom before September.</p>
+          </article>
+          <article data-reveal style="--tint: #ff5c8a">
+            <span class="who-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5S4.5 16 4.5 10.2A4.2 4.2 0 0 1 12 7.6a4.2 4.2 0 0 1 7.5 2.6c0 5.8-7.5 10.3-7.5 10.3z" /></svg></span>
+            <h3>Wedding and event venues</h3>
+            <p>Couples plan at eleven at night. Let them stand in the middle of the room and work out where the top table goes.</p>
+          </article>
+          <article data-reveal style="--tint: #f17022">
+            <span class="who-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 20v-5h20v5M4 15V8h16v7M8 12h8" /></svg></span>
+            <h3>Hotels and holiday lets</h3>
+            <p>Show every bedroom and the view from the window. It answers the "what's the second bedroom like?" email before anyone sends it.</p>
+          </article>
+          <article data-reveal style="--tint: #a78bfa">
+            <span class="who-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="1.5" /><path d="m4 16 5-5 4 4 3-3 4 4" /></svg></span>
+            <h3>Museums and galleries</h3>
+            <p>Pin a note beside each exhibit. People can visit from the other side of the country, or come back for a second look after the school trip.</p>
+          </article>
+          <article data-reveal style="--tint: #60a5fa">
+            <span class="who-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17v-4l2-5.2h12L20 13v4M4.5 17h15" /><circle cx="7.5" cy="17.3" r="1.6" /><circle cx="16.5" cy="17.3" r="1.6" /></svg></span>
+            <h3>Showrooms and studios</h3>
+            <p>Car showrooms, gyms, salons, offices to let. If people need to see the space before they commit, show them.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="what" id="what">
+        <h2 data-reveal>What goes into a tour</h2>
+        <div class="bento">
+          <article class="tile tile-photo" data-reveal>
+            <figure class="viewer">
+              <img
+                src="./src/assets/hero-lounge-1600.jpg"
+                srcset="./src/assets/hero-lounge-800.jpg 800w, ./src/assets/hero-lounge-1600.jpg 1600w"
+                sizes="(max-width: 860px) 100vw, 640px"
+                width="1600"
+                height="900"
+                loading="lazy"
+                decoding="async"
+                alt="A lounge with floor to ceiling windows. An info point on the window has opened a note."
+              />
+              <span class="pin pin-info is-open" style="left: 60%; top: 36%" aria-hidden="true">
+                <i class="pin-dot"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 11.2v5M12 7.9h.01" /></svg></i>
+                <span class="pin-note"><b>South-facing glazing</b>Sun from mid-morning. The blinds are on the wall switch.</span>
+              </span>
+              <span class="pin pin-link" style="left: 22%; top: 62%" aria-hidden="true">
+                <i class="pin-dot"><svg viewBox="0 0 24 24"><path d="M7 21V4h10v17M4 21h16M13.6 12.4h.01" /></svg></i>
+                <span class="pin-label">Into the meeting room</span>
+              </span>
+            </figure>
+            <h3>Notes where people look</h3>
+            <p>An info point opens a short note on the spot: how old the staircase is, how many the hall seats, what's behind the locked door.</p>
+          </article>
+
+          <article class="tile" data-reveal>
+            <div class="tile-art art-link" aria-hidden="true">
+              <i class="disc"><svg viewBox="0 0 24 24"><path d="M7 21V4h10v17M4 21h16M13.6 12.4h.01" /></svg></i>
+              <span class="dashes"></span>
+              <i class="disc"><svg viewBox="0 0 24 24"><path d="M4 12h15M13 6l6 6-6 6" /></svg></i>
+            </div>
+            <h3>Signposts between rooms</h3>
+            <p>Drop a hotspot on a doorway and visitors click through to the next room, the way they'd walk it.</p>
+          </article>
+
+          <article class="tile" data-reveal>
+            <div class="tile-art art-media" aria-hidden="true">
+              <span class="chip">Photo</span>
+              <span class="chip chip-video">Video</span>
+            </div>
+            <h3>Photos and video in one tour</h3>
+            <p>Mix 360° stills and footage. A quick photo of the utility room can sit next to a walkthrough of the garden.</p>
+          </article>
+
+          <article class="tile" data-reveal>
+            <div class="tile-art art-swatches" aria-hidden="true">
+              <i style="background: #eeff66"></i><i style="background: #62c2cc"></i><i style="background: #f17022"></i><i style="background: #ff5c8a"></i><i style="background: #a78bfa"></i><i style="background: #60a5fa"></i><i style="background: #171b1c"></i>
+            </div>
+            <h3>Your icons, your colours</h3>
+            <p>Twelve icons, so a door looks like a door. Set the pin colours to match your brand, with a hex code if you have one.</p>
+          </article>
+
+          <article class="tile" data-reveal>
+            <div class="tile-art art-code" aria-hidden="true">
+              <code>&lt;iframe src="…/embed.html"&gt;</code>
+            </div>
+            <h3>On your website in one paste</h3>
+            <p>Copy the embed code into a page, or host the exported folder yourself. A tour is a plain web page, so visitors don't install anything.</p>
+          </article>
+
+          <article class="tile tile-wide" data-reveal>
+            <h3>Your files stay with you</h3>
+            <p>The editor runs in your browser. Photos and video stay on your computer until you choose to publish, and the tour you export is yours to host wherever you like.</p>
+          </article>
+        </div>
       </section>
 
       <section class="how" id="how">
         <div class="how-copy">
-          <h2>Three steps</h2>
+          <h2 data-reveal>How it works</h2>
           <ol>
-            <li>
-              <h3>Upload your 360° media</h3>
-              <p>Each photo or clip becomes a scene in the tour.</p>
+            <li data-reveal>
+              <h3>Shoot</h3>
+              <p>Take a 360° photo or video in each room. Any camera that saves equirectangular files will do. Insta360, Ricoh Theta and GoPro Max cameras all can.</p>
             </li>
-            <li>
-              <h3>Link the scenes together</h3>
-              <p>Drop a hotspot where a visitor should be able to move on.</p>
+            <li data-reveal>
+              <h3>Link</h3>
+              <p>Upload them to the editor and each one becomes a scene. Add hotspots to join the scenes up, and info points for anything worth explaining.</p>
             </li>
-            <li>
-              <h3>Export or embed</h3>
-              <p>Take the whole tour as a folder, or paste an iframe into a page.</p>
+            <li data-reveal>
+              <h3>Share</h3>
+              <p>Export the tour and upload the folder to your web host, or paste the embed code into a page you already have.</p>
             </li>
           </ol>
-          <a class="button primary large" href="./app/">Start building</a>
+          <a class="button primary large" href="./app/" data-reveal>Start building</a>
         </div>
-        <figure class="viewer how-shot">
+        <figure class="viewer how-shot" data-reveal>
           <img
             src="./src/assets/room-house-1200.jpg"
             srcset="./src/assets/room-house-600.jpg 600w, ./src/assets/room-house-1200.jpg 1200w"
@@ -130,11 +219,50 @@
           </span>
         </figure>
       </section>
+
+      <section class="questions" id="questions">
+        <h2 data-reveal>Questions people ask</h2>
+        <div class="faq">
+          <details data-reveal>
+            <summary>Do I need a special camera?</summary>
+            <p>You need 360° photos or video, so a 360 camera or a phone app that stitches full panoramas. Showround takes equirectangular JPG and PNG photos, and MP4, WebM and MOV video.</p>
+          </details>
+          <details data-reveal>
+            <summary>Does it cost anything?</summary>
+            <p>Not at the moment, and there's no account to create.</p>
+          </details>
+          <details data-reveal>
+            <summary>Where do my photos go?</summary>
+            <p>Nowhere. The editor runs in your browser, so your files stay on your computer. When you export, you get a folder to upload to your own web host.</p>
+          </details>
+          <details data-reveal>
+            <summary>Can I change a tour after I've made it?</summary>
+            <p>Yes. Keep the zip you exported, then use Import in the editor to open it again and carry on.</p>
+          </details>
+          <details data-reveal>
+            <summary>Do visitors need an app?</summary>
+            <p>No. A finished tour is a web page, so it opens in a browser like any other page on your site.</p>
+          </details>
+          <details data-reveal>
+            <summary>Can I build a tour on my phone?</summary>
+            <p>The editor needs a laptop or desktop screen for now.</p>
+          </details>
+        </div>
+      </section>
+
+      <section class="closing" data-reveal>
+        <div class="rings" aria-hidden="true"><i></i><i></i><i></i></div>
+        <h2>Got a 360 camera?</h2>
+        <p>Make your first tour this afternoon.</p>
+        <a class="button primary large" href="./app/">Open the editor</a>
+      </section>
     </main>
 
     <footer class="foot">
       <p>Showround, by <a href="https://chaoscreated.co.uk" rel="noopener">Chaos Created</a></p>
       <a href="./app/">Open the editor</a>
     </footer>
+
+    <script type="module" src="./src/landing.js"></script>
   </body>
 </html>
