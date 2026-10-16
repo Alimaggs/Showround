@@ -98,6 +98,16 @@ const geometry=new THREE.SphereGeometry(500,60,40);geometry.scale(-1,1,1);
 scene3d.add(new THREE.Mesh(geometry,material));
 let tour,currentScene,longitude=0,latitude=0,dragging=false,startX=0,startY=0,startLong=0,startLat=0;
 
+// Moving between scenes turns towards the hotspot and pushes in, then
+// dissolves from a still of the old scene into the new one as the view widens
+// back out. Styled inline so tours keep working with any version of styles.css.
+const fade=document.createElement('canvas');
+fade.style.cssText='position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:0;cursor:default';
+renderer.domElement.after(fade);
+hotspotLayer.style.transition='opacity .2s';
+let tween=null,travelling=false,sceneReady=Promise.resolve(),markReady=()=>{};
+const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+
 const formatTime=(seconds=0)=>{if(!Number.isFinite(seconds))return'00:00';return String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(Math.floor(seconds%60)).padStart(2,'0')};
 const escapeHtml=value=>{const node=document.createElement('span');node.textContent=value;return node.innerHTML};
 
@@ -108,7 +118,7 @@ async function loadTour(){
     document.querySelector('#tour-name').textContent=tour.name;
     const picker=document.querySelector('#scene-picker');
     picker.innerHTML=tour.scenes.map(scene=>'<option value="'+scene.id+'">'+escapeHtml(scene.name)+'</option>').join('');
-    picker.addEventListener('change',()=>loadScene(picker.value));
+    picker.addEventListener('change',()=>{const id=picker.value;travel(null,()=>loadScene(id))});
     loadScene(tour.entrySceneId);
   }catch(error){
     const loading=document.querySelector('#loading');loading.textContent=error.message;loading.classList.add('error');
@@ -123,6 +133,7 @@ const viewOf=value=>value&&Number.isFinite(Number(value.yaw))&&Number.isFinite(N
 function loadScene(id,view){
   currentScene=tour.scenes.find(scene=>scene.id===id);
   if(!currentScene)return;
+  sceneReady=new Promise(resolve=>{markReady=resolve});
   const start=viewOf(view)||(id===tour.entrySceneId?viewOf(tour.entryView):null);
   const source=currentScene.src||currentScene.video;
   const still=currentScene.kind==='photo';
@@ -135,12 +146,12 @@ function loadScene(id,view){
   if(still){video.pause();showPhoto(currentScene,source);return}
   material.map=videoTexture;material.needsUpdate=true;
   video.pause();video.src=source;video.load();
-  video.addEventListener('canplay',()=>{loading.style.display='none';video.play().catch(()=>{})},{once:true});
+  video.addEventListener('canplay',()=>{loading.style.display='none';markReady();video.play().catch(()=>{})},{once:true});
 }
 
 function showPhoto(target,source){
   const loading=document.querySelector('#loading');
-  const show=photoTexture=>{if(currentScene!==target)return;material.map=photoTexture;material.needsUpdate=true;loading.style.display='none'};
+  const show=photoTexture=>{if(currentScene!==target)return;material.map=photoTexture;material.needsUpdate=true;loading.style.display='none';markReady()};
   const cached=photoTextures.get(target.id);
   if(cached){show(cached);return}
   const image=new Image();
@@ -156,7 +167,7 @@ function showPhoto(target,source){
     photoTexture.colorSpace=THREE.SRGBColorSpace;photoTexture.needsUpdate=true;
     photoTextures.set(target.id,photoTexture);show(photoTexture);
   },{once:true});
-  image.addEventListener('error',()=>{if(currentScene!==target)return;loading.textContent='This photo could not be loaded';loading.classList.add('error')},{once:true});
+  image.addEventListener('error',()=>{if(currentScene!==target)return;loading.textContent='This photo could not be loaded';loading.classList.add('error');markReady()},{once:true});
   image.src=source;
 }
 
@@ -167,7 +178,7 @@ function renderHotspots(){
   }).join('');
   hotspotLayer.querySelectorAll('.hotspot').forEach(button=>button.addEventListener('click',()=>{
     const point=currentScene.hotspots.find(item=>item.id===button.dataset.id);
-    if(point.type==='info')button.classList.toggle('open');else loadScene(point.targetSceneId,point.targetView);
+    if(point.type==='info')button.classList.toggle('open');else travel(point,()=>loadScene(point.targetSceneId,point.targetView));
   }));
   measureCards();
 }
@@ -195,8 +206,58 @@ function positionHotspots(){
   });
 }
 
+function animateTo(to,duration,ease){
+  const from={longitude:longitude,latitude:latitude,fov:camera.fov};
+  const turn=to.yaw===undefined?0:((to.yaw-longitude)%360+540)%360-180;
+  return new Promise(resolve=>{
+    const start=performance.now();
+    tween=now=>{
+      const progress=Math.min(1,(now-start)/duration),eased=ease(progress);
+      if(to.yaw!==undefined)longitude=from.longitude+turn*eased;
+      if(to.pitch!==undefined)latitude=from.latitude+(to.pitch-from.latitude)*eased;
+      if(to.fov!==undefined)camera.fov=from.fov+(to.fov-from.fov)*eased;
+      if(progress===1){tween=null;resolve()}
+    };
+  });
+}
+
+function holdStill(){
+  renderer.render(scene3d,camera);
+  fade.width=renderer.domElement.width;fade.height=renderer.domElement.height;
+  fade.getContext('2d').drawImage(renderer.domElement,0,0);
+  fade.style.transition='none';fade.style.opacity='1';fade.style.transform='none';
+}
+
+function releaseStill(duration){
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    fade.style.transition='opacity '+duration+'ms ease,transform '+(duration+150)+'ms cubic-bezier(.2,.7,.2,1)';
+    fade.style.opacity='0';fade.style.transform='scale(1.08)';
+  }));
+  return wait(duration+150);
+}
+
+// toward is the pin being followed, or null for a plain dissolve from the
+// scene menu. A pin is only looked at halfway down, so one on the floor does
+// not leave the visitor staring at the carpet.
+async function travel(toward,go){
+  if(travelling)return;
+  travelling=true;dragging=false;
+  hotspotLayer.style.opacity='0';
+  const calm=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(toward&&!calm)await animateTo({yaw:Number(toward.yaw),pitch:Number(toward.pitch)*.5,fov:50},520,p=>p*p*(3-2*p));
+  holdStill();
+  go();
+  await Promise.race([sceneReady,wait(2500)]);
+  if(!calm)camera.fov=toward?58:66;
+  const arrival=calm?null:animateTo({fov:72},750,p=>1-Math.pow(1-p,3));
+  await Promise.all([releaseStill(calm?260:520),arrival]);
+  hotspotLayer.style.opacity='';
+  travelling=false;
+}
+
 function animate(){
   requestAnimationFrame(animate);
+  if(tween)tween(performance.now());
   const width=viewer.clientWidth,height=viewer.clientHeight;
   renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();
   latitude=Math.max(-85,Math.min(85,latitude));
@@ -205,7 +266,7 @@ function animate(){
   renderer.render(scene3d,camera);positionHotspots();
 }
 
-renderer.domElement.addEventListener('pointerdown',event=>{dragging=true;startX=event.clientX;startY=event.clientY;startLong=longitude;startLat=latitude;renderer.domElement.setPointerCapture(event.pointerId)});
+renderer.domElement.addEventListener('pointerdown',event=>{if(travelling)return;dragging=true;startX=event.clientX;startY=event.clientY;startLong=longitude;startLat=latitude;renderer.domElement.setPointerCapture(event.pointerId)});
 renderer.domElement.addEventListener('pointermove',event=>{if(!dragging)return;longitude=startLong+(startX-event.clientX)*.14;latitude=startLat+(event.clientY-startY)*.14});
 renderer.domElement.addEventListener('pointerup',()=>dragging=false);
 renderer.domElement.addEventListener('wheel',event=>{camera.fov=Math.max(35,Math.min(90,camera.fov+event.deltaY*.04));camera.updateProjectionMatrix()},{passive:true});

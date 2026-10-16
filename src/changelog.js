@@ -7,6 +7,16 @@
 
 export const releases = [
   {
+    version: '0.8.0',
+    date: '2026-10-16',
+    title: 'Smoother moves between rooms',
+    notes: [
+      'Following a hotspot now turns towards it and moves forward, then fades into the next room. Choosing a room from the menu fades between them.',
+      'This works in Preview and in published and embedded tours. Export your tour again to add it to a tour you have already published.',
+      'If a visitor has reduced motion turned on in their device settings, they see a short fade instead.',
+    ],
+  },
+  {
     version: '0.7.0',
     date: '2026-10-16',
     title: 'Rename your scenes',

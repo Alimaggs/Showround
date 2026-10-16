@@ -36,6 +36,27 @@ hotspot as `targetView`, and changing the hotspot's target clears it.
 Both are `{ "yaw": degrees, "pitch": degrees }`. Opening a scene any other
 way, from the scene list or the location menu, uses the default view.
 
+## Moving between scenes
+
+Following a hotspot in Preview or in a published tour turns the camera
+towards the pin and narrows the field of view over about half a second, as
+if stepping towards it. A still of that last frame is then laid over the
+viewer, the next scene loads underneath, and the still fades and grows while
+the new scene widens back out. Choosing a scene from the menu skips the turn
+and just dissolves. Visitors with reduced motion set get a short fade only.
+
+The camera only looks halfway down or up towards the pin, so following a pin
+placed on the floor does not end with a view of the carpet. The still waits
+for the next scene to be drawable (the photo decoded or the video's first
+frame), up to two and a half seconds, so a slow connection shows the old room
+rather than a black sphere.
+
+It lives in two places that must be kept in step: `travel` in the editor's
+`createViewer` (`src/main.js`) and in the player script in
+`src/export-player.js`. Published tours carry their own copy of the player,
+so a tour picks up a change here when it is exported again. Nothing is added
+to the manifest.
+
 ## Scene names
 
 A scene starts out named after the file it was made from. The pencil on its

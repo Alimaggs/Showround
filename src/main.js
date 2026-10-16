@@ -311,6 +311,10 @@ function formatTime(seconds = 0) {
   return `${String(minutes).padStart(2, '0')}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`
 }
 
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 function escapeHtml(value) {
   const element = document.createElement('span')
   element.textContent = value
@@ -934,9 +938,10 @@ function followHotspot(id) {
     return
   }
 
-  selectScene(target.id, hotspot.targetView)
-  playVideo()
-  notify(`Entering ${target.name}`)
+  state.renderer.travel(hotspot, () => {
+    selectScene(target.id, hotspot.targetView)
+    playVideo()
+  })
 }
 
 function togglePreview() {
@@ -1109,6 +1114,17 @@ function createViewer() {
   scene.add(new THREE.Mesh(geometry, material))
   const photoTextures = new Map()
 
+  // Moving between scenes in preview turns towards the hotspot and pushes in,
+  // then dissolves from a still of the old scene into the new one as the view
+  // widens back out. The still is copied straight after a render, so the
+  // WebGL canvas does not need preserveDrawingBuffer.
+  const fade = document.createElement('canvas')
+  fade.className = 'scene-fade'
+  container.after(fade)
+  let tween = null
+  let travelling = false
+  let sceneReady = Promise.resolve()
+
   let longitude = 0
   let latitude = 0
   let dragging = false
@@ -1132,8 +1148,51 @@ function createViewer() {
     camera.lookAt(camera.target)
   }
 
+  function animateTo(to, duration, ease) {
+    const from = { longitude, latitude, fov: camera.fov }
+    // The shorter way round, so a pin at yaw 170 seen from -170 turns 20 degrees
+    // rather than 340.
+    const turn = to.yaw === undefined ? 0 : ((to.yaw - longitude) % 360 + 540) % 360 - 180
+    return new Promise((resolve) => {
+      const start = performance.now()
+      tween = (now) => {
+        const progress = Math.min(1, (now - start) / duration)
+        const eased = ease(progress)
+        if (to.yaw !== undefined) longitude = from.longitude + turn * eased
+        if (to.pitch !== undefined) latitude = from.latitude + (to.pitch - from.latitude) * eased
+        if (to.fov !== undefined) camera.fov = from.fov + (to.fov - from.fov) * eased
+        if (progress === 1) {
+          tween = null
+          resolve()
+        }
+      }
+    })
+  }
+
+  function holdStill() {
+    renderer.render(scene, camera)
+    fade.width = renderer.domElement.width
+    fade.height = renderer.domElement.height
+    fade.getContext('2d').drawImage(renderer.domElement, 0, 0)
+    fade.style.transition = 'none'
+    fade.style.opacity = '1'
+    fade.style.transform = 'none'
+  }
+
+  function releaseStill(duration) {
+    // Two frames, so the browser has painted the still at full opacity before
+    // the transition to transparent starts.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      fade.style.transition = `opacity ${duration}ms ease, transform ${duration + 150}ms cubic-bezier(.2, .7, .2, 1)`
+      fade.style.opacity = '0'
+      fade.style.transform = 'scale(1.08)'
+    }))
+    return wait(duration + 150)
+  }
+
   function animate() {
     requestAnimationFrame(animate)
+    tween?.(performance.now())
     resize()
     updateCamera()
     renderer.render(scene, camera)
@@ -1141,7 +1200,7 @@ function createViewer() {
   }
 
   renderer.domElement.addEventListener('pointerdown', (event) => {
-    if (state.addingType) return
+    if (state.addingType || travelling) return
     dragging = true
     startX = event.clientX
     startY = event.clientY
@@ -1165,11 +1224,19 @@ function createViewer() {
   animate()
 
   return {
+    // Settles once the scene has something to draw, which is what a
+    // transition waits for before revealing it.
     showScene(target) {
       if (!target) return
       if (target.kind !== 'photo') {
         material.map = videoTexture
         material.needsUpdate = true
+        sceneReady = video.readyState >= 2
+          ? Promise.resolve()
+          : new Promise((resolve) => {
+            video.addEventListener('loadeddata', resolve, { once: true })
+            video.addEventListener('error', resolve, { once: true })
+          })
         return
       }
 
@@ -1177,15 +1244,39 @@ function createViewer() {
       if (cached) {
         material.map = cached
         material.needsUpdate = true
+        sceneReady = Promise.resolve()
         return
       }
 
-      loadPhotoTexture(target.url, renderer.capabilities.maxTextureSize).then((photoTexture) => {
+      sceneReady = loadPhotoTexture(target.url, renderer.capabilities.maxTextureSize).then((photoTexture) => {
         photoTextures.set(target.id, photoTexture)
         if (state.activeSceneId !== target.id) return
         material.map = photoTexture
         material.needsUpdate = true
       }).catch(() => notify(`${target.name} could not be displayed`))
+    },
+    // toward is the pin being followed, or null for a plain dissolve. go swaps
+    // the scene in and sets its arrival view.
+    async travel(toward, go) {
+      if (travelling) return
+      travelling = true
+      dragging = false
+      const shell = container.parentElement
+      shell.classList.add('travelling')
+      const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      if (toward && !calm) {
+        // Only part of the way down or up, so a pin on the floor does not
+        // leave the visitor staring at the carpet.
+        await animateTo({ yaw: toward.yaw, pitch: toward.pitch * 0.5, fov: 50 }, 520, (p) => p * p * (3 - 2 * p))
+      }
+      holdStill()
+      go()
+      await Promise.race([sceneReady, wait(2500)])
+      if (!calm) camera.fov = toward ? 58 : 66
+      const arrival = calm ? null : animateTo({ fov: 72 }, 750, (p) => 1 - Math.pow(1 - p, 3))
+      await Promise.all([releaseStill(calm ? 260 : 520), arrival])
+      shell.classList.remove('travelling')
+      travelling = false
     },
     resetView(view) {
       longitude = view ? view.yaw : 0
