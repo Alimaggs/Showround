@@ -11,10 +11,30 @@ Scenes can be 360-degree video (MP4, WebM, MOV) or 360-degree stills (JPG, PNG, 
 ## Interactions
 
 Hotspots move a visitor to another scene; info points reveal a note in place.
-Both carry an icon chosen from a shared set of twelve (defined in
+Both carry an icon chosen from a shared set of forty (defined in
 `src/pin-icons.js`), picked when the interaction is created and changeable
-later in the inspector. The same definitions are injected into the exported
-player, so a published tour draws the identical icons.
+later in the inspector. Each picker has a search box that matches the icon's
+name and label. The same definitions are injected into the exported player, so
+a published tour draws the identical icons.
+
+Icon keys are stored in exported tours, so a key that has shipped must never be
+renamed or removed. New icons can go anywhere in the list.
+
+## Views
+
+**Starting view** sets which way a visitor faces when the tour opens. Press the
+button above the viewer, drag the scene to the angle you want and choose Use
+this view. It is stored as `entryView` and applies to the first scene only.
+
+**Arrival view** belongs to a hotspot: which way the visitor faces when that
+hotspot takes them to the next scene. Choose it in the hotspot's inspector and
+the editor opens the target scene for you to aim. Two hotspots into the same
+room can arrive facing different ways, so the door from the hall can face into
+the room while the door from the garden faces the window. It is stored on the
+hotspot as `targetView`, and changing the hotspot's target clears it.
+
+Both are `{ "yaw": degrees, "pitch": degrees }`. Opening a scene any other
+way, from the scene list or the location menu, uses the default view.
 
 ## Pin colours
 
@@ -42,6 +62,26 @@ The editor resolves both background and ink into the manifest at export:
 A published tour then only has to apply those values, with no contrast maths
 of its own. Manifests without a `theme`, which is every export made before
 this, fall back to the original lime and aqua.
+
+## Tour format and old tours
+
+Every tour anyone has exported must keep importing, so the manifest only ever
+gains optional fields whose absence means the old behaviour. A field is never
+renamed, removed or given a new meaning; that would need a new manifest
+version and a migration. The history is written up at the top of
+`src/tour-format.js`, which holds the import parsing and has no DOM, so it
+runs under Node too.
+
+```sh
+npm test
+```
+
+runs `scripts/check-compat.mjs`, which builds a sample zip in each format
+that has shipped (Chaos360, 0.1 to 0.4, 0.5 with colours, 0.6 with views),
+imports each one, and checks that zips which are not tours are refused with a
+readable message. Pass `--write <dir>` to keep the sample zips for importing
+by hand. When the format changes, add a fixture that mirrors the new export
+code.
 
 ## Embedding
 

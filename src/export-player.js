@@ -115,12 +115,18 @@ async function loadTour(){
   }
 }
 
-function loadScene(id){
+// A hotspot can say which way to face on arrival, and the tour can say which
+// way its first scene faces. Tours without either open facing yaw 0, as every
+// tour did before those existed.
+const viewOf=value=>value&&Number.isFinite(Number(value.yaw))&&Number.isFinite(Number(value.pitch))?{yaw:Number(value.yaw),pitch:Number(value.pitch)}:null;
+
+function loadScene(id,view){
   currentScene=tour.scenes.find(scene=>scene.id===id);
   if(!currentScene)return;
+  const start=viewOf(view)||(id===tour.entrySceneId?viewOf(tour.entryView):null);
   const source=currentScene.src||currentScene.video;
   const still=currentScene.kind==='photo';
-  longitude=0;latitude=0;
+  longitude=start?start.yaw:0;latitude=start?start.pitch:0;
   document.querySelector('#scene-picker').value=id;
   renderHotspots();
   document.body.classList.toggle('still',still);
@@ -161,7 +167,7 @@ function renderHotspots(){
   }).join('');
   hotspotLayer.querySelectorAll('.hotspot').forEach(button=>button.addEventListener('click',()=>{
     const point=currentScene.hotspots.find(item=>item.id===button.dataset.id);
-    if(point.type==='info')button.classList.toggle('open');else loadScene(point.targetSceneId);
+    if(point.type==='info')button.classList.toggle('open');else loadScene(point.targetSceneId,point.targetView);
   }));
   measureCards();
 }

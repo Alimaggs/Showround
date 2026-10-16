@@ -4,7 +4,8 @@ import threeSource from '../node_modules/three/build/three.module.min.js?raw'
 import threeCoreSource from '../node_modules/three/build/three.core.min.js?raw'
 import { embedHtml, exportReadme, playerHtml, playerScript, playerStyles } from './export-player.js'
 import { defaultHotspotIcon, defaultInfoIcon, pinIcons, pinIconSvg } from './pin-icons.js'
-import { defaultTheme, inkFor, normalizeHex, pinStyle, presetColors, themeFrom } from './pin-colors.js'
+import { defaultTheme, inkFor, normalizeHex, pinStyle, presetColors } from './pin-colors.js'
+import { parseTourZip, viewFrom } from './tour-format.js'
 import { currentRelease, releases } from './changelog.js'
 import './style.css'
 
@@ -17,6 +18,7 @@ const icons = {
   export: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v12m0 0 5-5m-5 5-5-5M5 19h14"/></svg>',
   embed: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 7-5 5 5 5M16 7l5 5-5 5M13.6 4.5l-3.2 15"/></svg>',
   import: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V8m0 0 5 5m-5-5-5 5M5 4h14"/></svg>',
+  compass: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15.6 8.4-2.1 5.1-5.1 2.1 2.1-5.1z"/></svg>',
   settings: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M19 6h1M4 12h3M13 12h7M4 18h9M19 18h1"/><circle cx="16" cy="6" r="2.2"/><circle cx="10" cy="12" r="2.2"/><circle cx="16" cy="18" r="2.2"/></svg>',
   megaphone: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.6v4.8a1.6 1.6 0 0 0 1.6 1.6h2.2l7.6 4.3V3.7L7.8 8H5.6A1.6 1.6 0 0 0 4 9.6z"/><path d="M7.8 16v3a2 2 0 0 0 4 0v-.9M19 9.4a4.2 4.2 0 0 1 0 5.2"/></svg>',
   more: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>',
@@ -36,6 +38,13 @@ const state = {
   pendingPoint: null,
   pendingIcon: defaultHotspotIcon,
   theme: { ...defaultTheme },
+  // Which scene a tour opens on, and which way it faces. Null means the first
+  // scene in the list, facing the default direction, which is how every tour
+  // behaved before these existed.
+  entrySceneId: null,
+  entryView: null,
+  // Set while the author is turning the viewer to choose a direction.
+  pickingView: null,
   pendingImport: null,
   renderer: null,
 }
@@ -91,6 +100,7 @@ document.querySelector('#app').innerHTML = `
           <span class="muted">Scenes</span>${icons.chevron}<strong id="active-scene-name">No scene selected</strong>
         </div>
         <div class="interaction-tools">
+          <button class="button view-button" id="set-start-view" disabled title="Choose which way the tour faces when it opens">${icons.compass} Starting view</button>
           <button class="button info-button" id="add-info" disabled>i&nbsp; Add info</button>
           <button class="button hotspot-button" id="add-hotspot" disabled>${icons.hotspot} Add hotspot</button>
         </div>
@@ -107,6 +117,15 @@ document.querySelector('#app').innerHTML = `
         <div class="drop-overlay" id="drop-overlay">${icons.upload}<strong>Drop videos or photos to add scenes</strong></div>
         <div class="hotspot-layer" id="hotspot-layer"></div>
         <div class="add-instruction" id="add-instruction">Click anywhere to place the hotspot <kbd>Esc</kbd> to cancel</div>
+        <div class="view-picker" id="view-picker" hidden>
+          <p id="view-picker-text">Turn the view, then choose Use this view.</p>
+          <div class="view-picker-actions">
+            <button class="button secondary" id="view-picker-cancel" type="button">Cancel</button>
+            <button class="button secondary" id="view-picker-default" type="button">Use the default</button>
+            <button class="button primary" id="view-picker-use" type="button">Use this view</button>
+          </div>
+        </div>
+        <span class="view-crosshair" id="view-crosshair" aria-hidden="true" hidden></span>
         <div class="view-hint" id="view-hint"><span>↔</span> Drag to look around</div>
       </div>
 
@@ -142,9 +161,19 @@ document.querySelector('#app').innerHTML = `
         <label><span id="interaction-label-title">Label</span><input id="hotspot-label" maxlength="60" placeholder="e.g. Enter the kitchen"></label>
         <label id="hotspot-description-wrap" hidden>Information<textarea id="hotspot-description" maxlength="240" rows="5" placeholder="Add a couple of sentences about this point."></textarea><small class="char-count" id="hotspot-description-count"></small></label>
         <label id="hotspot-target-wrap">Link to scene<select id="hotspot-target"></select></label>
+        <div class="view-field" id="arrival-view-wrap">
+          <span class="pin-field-title">Arrival view</span>
+          <div class="view-row">
+            <span class="view-status" id="arrival-view-status">Default</span>
+            <button class="button secondary compact-button" id="arrival-view-choose" type="button">Choose</button>
+            <button class="text-button" id="arrival-view-reset" type="button">Reset</button>
+          </div>
+          <small class="field-hint">Which way visitors face when this hotspot takes them to the next scene.</small>
+        </div>
         <label>Placed at<input id="hotspot-time" type="text" readonly></label>
         <div class="pin-field">
           <span class="pin-field-title">Icon</span>
+          <input class="icon-search" type="search" placeholder="Search icons" aria-label="Search icons" data-icon-search="hotspot-icon-picker" autocomplete="off">
           <div class="icon-picker" id="hotspot-icon-picker"></div>
         </div>
         <div class="position-readout"><span>View position</span><code id="hotspot-position">0°, 0°</code></div>
@@ -162,6 +191,7 @@ document.querySelector('#app').innerHTML = `
       <label>Destination scene<select id="new-hotspot-target"></select></label>
       <div class="pin-field">
         <span class="pin-field-title">Icon</span>
+        <input class="icon-search" type="search" placeholder="Search icons" aria-label="Search icons" data-icon-search="new-hotspot-icon-picker" autocomplete="off">
         <div class="icon-picker" id="new-hotspot-icon-picker"></div>
       </div>
       <div class="dialog-actions">
@@ -179,6 +209,7 @@ document.querySelector('#app').innerHTML = `
       <label>Information<textarea id="new-info-description" maxlength="240" rows="5" placeholder="Add a couple of sentences about this point."></textarea><small class="char-count" id="new-info-description-count"></small></label>
       <div class="pin-field">
         <span class="pin-field-title">Icon</span>
+        <input class="icon-search" type="search" placeholder="Search icons" aria-label="Search icons" data-icon-search="new-info-icon-picker" autocomplete="off">
         <div class="icon-picker" id="new-info-icon-picker"></div>
       </div>
       <div class="dialog-actions">
@@ -385,8 +416,24 @@ function openSettings() {
 
 function renderIconPicker(container, selected) {
   container.innerHTML = Object.entries(pinIcons).map(([name, icon]) => `
-    <button type="button" class="icon-choice ${name === selected ? 'selected' : ''}" data-icon="${name}" title="${icon.label}" aria-label="${icon.label}" aria-pressed="${name === selected}">${pinIconSvg(name)}</button>
+    <button type="button" class="icon-choice ${name === selected ? 'selected' : ''}" data-icon="${name}" data-search="${icon.label.toLowerCase()} ${name}" title="${icon.label}" aria-label="${icon.label}" aria-pressed="${name === selected}">${pinIconSvg(name)}</button>
   `).join('')
+  filterIconPicker(container)
+}
+
+// The selected icon always stays visible, so filtering never hides the
+// current choice.
+function filterIconPicker(container) {
+  const query = (container.dataset.query || '').trim().toLowerCase()
+  container.querySelectorAll('.icon-choice').forEach((choice) => {
+    choice.hidden = Boolean(query) && !choice.dataset.search.includes(query) && !choice.classList.contains('selected')
+  })
+}
+
+function resetIconSearch(container) {
+  container.dataset.query = ''
+  const field = document.querySelector(`[data-icon-search="${container.id}"]`)
+  if (field) field.value = ''
 }
 
 function bindIconPicker(container, onPick) {
@@ -548,7 +595,7 @@ function renderScenes() {
   })
 }
 
-function selectScene(id) {
+function selectScene(id, view) {
   const scene = state.scenes.find((item) => item.id === id)
   if (!scene) return
 
@@ -578,7 +625,8 @@ function selectScene(id) {
   renderScenes()
   renderHotspots()
   updateTimeline()
-  state.renderer?.resetView()
+  updateStartViewButton()
+  state.renderer?.resetView(view || defaultViewFor(id))
 }
 
 function renderHotspots() {
@@ -658,7 +706,10 @@ function selectHotspot(id) {
   $('#hotspot-description').value = hotspot.description || ''
   $('#hotspot-description-wrap').hidden = !isInfo
   $('#hotspot-target-wrap').hidden = isInfo
+  $('#arrival-view-wrap').hidden = isInfo
+  if (!isInfo) renderArrivalView(hotspot)
   $('#delete-hotspot').textContent = isInfo ? 'Delete info point' : 'Delete hotspot'
+  resetIconSearch($('#hotspot-icon-picker'))
   renderIconPicker($('#hotspot-icon-picker'), iconFor(hotspot))
   $('#hotspot-time').value = formatTime(hotspot.time)
   $('#hotspot-position').textContent = `${Math.round(hotspot.yaw)}°, ${Math.round(hotspot.pitch)}°`
@@ -721,6 +772,80 @@ function deleteInteraction(id) {
   notify(`${interaction.type === 'info' ? 'Info point' : 'Hotspot'} deleted`)
 }
 
+function entrySceneId() {
+  return state.scenes.some((scene) => scene.id === state.entrySceneId) ? state.entrySceneId : state.scenes[0]?.id
+}
+
+// The view a scene opens at when nothing more specific was asked for: the
+// starting view for the first scene, the default direction for the rest.
+function defaultViewFor(sceneId) {
+  return sceneId === entrySceneId() ? state.entryView : null
+}
+
+function updateStartViewButton() {
+  const button = $('#set-start-view')
+  button.disabled = !state.scenes.length || state.previewMode || Boolean(state.pickingView)
+  button.classList.toggle('is-set', Boolean(state.entryView))
+}
+
+function renderArrivalView(hotspot) {
+  const set = Boolean(hotspot?.targetView)
+  $('#arrival-view-status').textContent = set ? 'Set' : 'Default'
+  $('#arrival-view-status').classList.toggle('is-set', set)
+  $('#arrival-view-reset').hidden = !set
+  $('#arrival-view-choose').disabled = !state.scenes.some((scene) => scene.id === hotspot?.targetSceneId)
+}
+
+function enterViewPicker(picking) {
+  cancelAddHotspot()
+  state.pickingView = picking
+  document.body.classList.add('picking-view')
+  if (picking.mode === 'entry') {
+    selectScene(entrySceneId())
+    $('#view-picker-text').textContent = 'Turn the view to where the tour should open, then choose Use this view.'
+    $('#view-picker-default').hidden = !state.entryView
+  } else {
+    const hotspot = findHotspot(picking.sourceSceneId, picking.hotspotId)
+    const target = state.scenes.find((scene) => scene.id === hotspot.targetSceneId)
+    selectScene(target.id, hotspot.targetView)
+    $('#view-picker-text').textContent = `Turn the view to where visitors should face when they arrive in ${target.name}, then choose Use this view.`
+    $('#view-picker-default').hidden = !hotspot.targetView
+  }
+  $('#view-picker').hidden = false
+  $('#view-crosshair').hidden = false
+  updateStartViewButton()
+}
+
+function exitViewPicker(view) {
+  const picking = state.pickingView
+  if (!picking) return
+  state.pickingView = null
+  document.body.classList.remove('picking-view')
+  $('#view-picker').hidden = true
+  $('#view-crosshair').hidden = true
+
+  if (picking.mode === 'entry') {
+    if (view !== undefined) {
+      state.entryView = view
+      notify(view ? 'Starting view saved' : 'Starting view reset to the default')
+    }
+  } else {
+    const hotspot = findHotspot(picking.sourceSceneId, picking.hotspotId)
+    if (hotspot && view !== undefined) {
+      if (view) hotspot.targetView = view
+      else delete hotspot.targetView
+      notify(view ? 'Arrival view saved' : 'Arrival view reset to the default')
+    }
+    selectScene(picking.sourceSceneId)
+    if (hotspot) selectHotspot(hotspot.id)
+  }
+  updateStartViewButton()
+}
+
+function findHotspot(sceneId, hotspotId) {
+  return state.scenes.find((scene) => scene.id === sceneId)?.hotspots.find((item) => item.id === hotspotId)
+}
+
 function playVideo() {
   if (isPhotoScene(activeScene())) return
   video.play().catch(() => {
@@ -736,7 +861,7 @@ function followHotspot(id) {
     return
   }
 
-  selectScene(target.id)
+  selectScene(target.id, hotspot.targetView)
   playVideo()
   notify(`Entering ${target.name}`)
 }
@@ -755,6 +880,7 @@ function togglePreview() {
   $('#add-info').disabled = state.previewMode
   cancelAddHotspot()
   closeInspector()
+  updateStartViewButton()
 
   if (state.previewMode) {
     playVideo()
@@ -808,6 +934,7 @@ function openHotspotDialog(event) {
   state.pendingPoint = state.renderer.screenToAngles(event.clientX - bounds.left, event.clientY - bounds.top)
   if (state.addingType === 'info') {
     state.pendingIcon = defaultInfoIcon
+    resetIconSearch($('#new-info-icon-picker'))
     renderIconPicker($('#new-info-icon-picker'), state.pendingIcon)
     $('#new-info-title').value = ''
     $('#new-info-description').value = ''
@@ -815,6 +942,7 @@ function openHotspotDialog(event) {
     $('#info-dialog').showModal()
   } else {
     state.pendingIcon = defaultHotspotIcon
+    resetIconSearch($('#new-hotspot-icon-picker'))
     renderIconPicker($('#new-hotspot-icon-picker'), state.pendingIcon)
     populateSceneSelect($('#new-hotspot-target'))
     $('#new-hotspot-label').value = ''
@@ -986,11 +1114,16 @@ function createViewer() {
         material.needsUpdate = true
       }).catch(() => notify(`${target.name} could not be displayed`))
     },
-    resetView() {
-      longitude = 0
-      latitude = 0
+    resetView(view) {
+      longitude = view ? view.yaw : 0
+      latitude = view ? view.pitch : 0
       camera.fov = 72
       camera.updateProjectionMatrix()
+    },
+    // In the same degrees as a pin's yaw and pitch, so a saved view and a pin
+    // placed at the centre of the screen agree.
+    getView() {
+      return viewFrom({ yaw: longitude, pitch: Math.max(-85, Math.min(85, latitude)) })
     },
     screenToAngles(x, y) {
       const rect = renderer.domElement.getBoundingClientRect()
@@ -1056,59 +1189,27 @@ function mimeForFile(name) {
   return MIME_BY_EXTENSION[name.split('.').pop()?.toLowerCase()] || ''
 }
 
-// Exports before manifest version 2 stored a single video path under "video"
-// and had no scene kind, so treat anything without a kind as video.
-function manifestSource(scene) {
-  return scene.src || scene.video || ''
-}
-
-// Anything thrown here is worth putting in front of the person importing.
-// Failures from inside JSZip are not: they describe zip internals and even
-// link to the library's docs, so those get a plain message instead.
-function importError(message) {
-  const error = new Error(message)
-  error.friendly = true
-  return error
-}
-
+// The manifest itself is read by tour-format.js, which knows every format the
+// editor has ever exported. This only turns its media entries into files.
 async function readTourZip(file) {
-  const zip = await JSZip.loadAsync(file)
-  const manifestEntry = zip.file('tour.json')
-  if (!manifestEntry) throw importError('That zip does not contain a Showround tour')
-
-  const manifest = JSON.parse(await manifestEntry.async('string'))
-  if (!Array.isArray(manifest.scenes) || !manifest.scenes.length) {
-    throw importError('That tour has no scenes in it')
-  }
-
+  const tour = await parseTourZip(await JSZip.loadAsync(file))
   const scenes = []
-  for (const scene of manifest.scenes) {
-    const path = manifestSource(scene).replace(/^\.\//, '')
-    const entry = path && zip.file(path)
-    if (!entry) throw importError(`The tour is missing ${scene.fileName || 'a media file'}`)
-
-    const fileName = scene.fileName || path.split('/').pop()
-    const blob = await entry.async('blob')
-    const media = new File([blob], fileName, { type: blob.type || mimeForFile(fileName) })
+  for (const scene of tour.scenes) {
+    const blob = await scene.entry.async('blob')
+    const media = new File([blob], scene.fileName, { type: blob.type || mimeForFile(scene.fileName) })
     scenes.push({
       id: scene.id || uid(),
-      kind: scene.kind === 'photo' ? 'photo' : 'video',
-      name: scene.name || fileName.replace(/\.[^.]+$/, ''),
-      fileName,
+      kind: scene.kind,
+      name: scene.name,
+      fileName: scene.fileName,
       file: media,
       url: URL.createObjectURL(media),
       thumbnail: '',
-      duration: Number(scene.duration) || 0,
-      hotspots: Array.isArray(scene.hotspots) ? scene.hotspots : [],
+      duration: scene.duration,
+      hotspots: scene.hotspots,
     })
   }
-
-  const theme = themeFrom({
-    hotspot: manifest.theme?.hotspot?.background,
-    info: manifest.theme?.info?.background,
-  })
-
-  return { name: manifest.name, entrySceneId: manifest.entrySceneId, theme, scenes }
+  return { ...tour, scenes }
 }
 
 async function applyImportedTour(file) {
@@ -1125,6 +1226,8 @@ async function applyImportedTour(file) {
     state.activeHotspotId = null
     state.projectName = tour.name || 'Imported tour'
     state.theme = tour.theme
+    state.entrySceneId = tour.entrySceneId || null
+    state.entryView = tour.entryView
     $('#project-name').value = state.projectName
 
     for (const scene of state.scenes) {
@@ -1190,7 +1293,8 @@ async function exportTour() {
       hotspot: { background: state.theme.hotspot, ink: inkFor(state.theme.hotspot) },
       info: { background: state.theme.info, ink: inkFor(state.theme.info) },
     },
-    entrySceneId: state.scenes[0].id,
+    entrySceneId: entrySceneId(),
+    ...(state.entryView ? { entryView: state.entryView } : {}),
     scenes: exportedScenes,
   }
 
@@ -1271,7 +1375,37 @@ function bindEvents() {
     activeHotspot().description = event.target.value
     renderHotspots()
   })
-  $('#hotspot-target').addEventListener('change', (event) => { activeHotspot().targetSceneId = event.target.value })
+  $('#hotspot-target').addEventListener('change', (event) => {
+    const hotspot = activeHotspot()
+    hotspot.targetSceneId = event.target.value
+    // An arrival view belongs to the scene it was chosen in.
+    delete hotspot.targetView
+    renderArrivalView(hotspot)
+  })
+  $('#arrival-view-choose').addEventListener('click', () => {
+    const hotspot = activeHotspot()
+    if (hotspot) enterViewPicker({ mode: 'arrival', sourceSceneId: state.activeSceneId, hotspotId: hotspot.id })
+  })
+  $('#arrival-view-reset').addEventListener('click', () => {
+    const hotspot = activeHotspot()
+    if (!hotspot) return
+    delete hotspot.targetView
+    renderArrivalView(hotspot)
+    notify('Arrival view reset to the default')
+  })
+  $('#set-start-view').addEventListener('click', () => enterViewPicker({ mode: 'entry' }))
+  $('#view-picker-use').addEventListener('click', () => exitViewPicker(state.renderer.getView()))
+  $('#view-picker-default').addEventListener('click', () => exitViewPicker(null))
+  $('#view-picker-cancel').addEventListener('click', () => exitViewPicker())
+  document.querySelectorAll('[data-icon-search]').forEach((field) => {
+    field.addEventListener('input', () => {
+      const container = document.getElementById(field.dataset.iconSearch)
+      container.dataset.query = field.value
+      filterIconPicker(container)
+    })
+    // Enter in a search box inside a dialog form would otherwise submit it.
+    field.addEventListener('keydown', (event) => { if (event.key === 'Enter') event.preventDefault() })
+  })
   bindIconPicker($('#hotspot-icon-picker'), (icon) => {
     activeHotspot().icon = icon
     renderHotspots()
@@ -1324,7 +1458,10 @@ function bindEvents() {
   }))
   shell.addEventListener('drop', (event) => addFiles(event.dataTransfer.files))
   window.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') cancelAddHotspot()
+    if (event.key === 'Escape') {
+      cancelAddHotspot()
+      if (state.pickingView) exitViewPicker()
+    }
     const isFormControl = ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(event.target.tagName) || event.target.isContentEditable
     if (event.code === 'Space' && !isFormControl) {
       event.preventDefault()

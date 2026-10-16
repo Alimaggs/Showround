@@ -238,11 +238,39 @@ kbd { font: inherit; color: #bbc6c1; margin-left: 8px; }
 .char-count.near-limit { color: var(--accent-dark); }
 .pin-field { margin-bottom: 16px; }
 .pin-field-title { display: block; color: #65706b; font-size: 10px; font-weight: 600; margin-bottom: 7px; }
-.icon-picker { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
-.icon-choice { height: 34px; padding: 0; display: grid; place-items: center; border: 1px solid #dce2df; border-radius: 8px; background: #fff; color: #55605b; cursor: pointer; transition: .15s ease; }
+.icon-search { width: 100%; height: 32px; margin-bottom: 7px; padding: 0 10px; border: 1px solid #dce2df; border-radius: 7px; background: #fff; color: #33403a; font-size: 11px; outline: none; }
+.icon-search:focus { border-color: var(--aqua); box-shadow: 0 0 0 3px var(--ice); }
+.inspector-content .icon-search, dialog .icon-search { height: 32px; margin-top: 0; }
+.icon-picker { display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; }
+.icon-choice { height: 31px; padding: 0; display: grid; place-items: center; border: 1px solid #dce2df; border-radius: 8px; background: #fff; color: #55605b; cursor: pointer; transition: .15s ease; }
 .icon-choice:hover { border-color: var(--aqua); background: #f7fdfd; }
 .icon-choice.selected { border-color: var(--accent); background: #fff1e7; color: var(--accent-dark); box-shadow: 0 0 0 2px #f1702226; }
-.icon-choice svg { width: 18px; height: 18px; }
+.icon-choice svg { width: 17px; height: 17px; }
+
+/* Choosing a direction */
+.view-button { color: #33403a; }
+.view-button.is-set { border-color: #c9de3c; background: #fbffe0; }
+.view-button.is-set::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #93a815; }
+.view-field { margin-bottom: 16px; }
+.view-row { display: flex; align-items: center; gap: 8px; }
+.view-status { flex: 1; padding: 8px 10px; border: 1px solid #dce2df; border-radius: 7px; background: #fafbfa; color: #7b8581; font-size: 11px; font-weight: 600; }
+.view-status.is-set { color: #33403a; border-color: #c9de3c; background: #fbffe0; }
+.compact-button { height: 34px; padding: 0 12px; font-size: 11px; }
+.text-button { border: 0; background: none; padding: 4px; color: #b64806; font-size: 11px; font-weight: 600; cursor: pointer; }
+.text-button:hover { text-decoration: underline; }
+.field-hint { display: block; margin-top: 6px; color: #9aa29e; font-size: 9px; line-height: 1.45; }
+.view-picker { position: absolute; z-index: 8; left: 50%; top: 14px; transform: translateX(-50%); width: min(560px, calc(100% - 28px)); padding: 12px 14px; border-radius: 12px; background: #17241fee; color: #fff; box-shadow: 0 12px 30px #0d17134d; }
+.view-picker p { font-size: 11px; line-height: 1.45; margin-bottom: 10px; }
+.view-picker-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
+.view-picker-actions .button { height: 32px; padding: 0 12px; font-size: 11px; }
+.view-crosshair { position: absolute; z-index: 6; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px #0006, inset 0 0 0 1px #0006; pointer-events: none; }
+.view-crosshair::before, .view-crosshair::after { content: ''; position: absolute; left: 50%; top: 50%; background: #fff; box-shadow: 0 0 0 1px #0005; }
+.view-crosshair::before { width: 2px; height: 14px; margin: -7px 0 0 -1px; }
+.view-crosshair::after { width: 14px; height: 2px; margin: -1px 0 0 -7px; }
+/* While choosing, everything outside the viewer is held still so the choice
+   can only end through the banner. */
+.picking-view .sidebar, .picking-view .inspector, .picking-view .top-actions, .picking-view .interaction-tools, .picking-view .timeline-panel { pointer-events: none; opacity: .45; transition: opacity .2s; }
+.picking-view .hotspot-layer { visibility: hidden; }
 .theme-field { margin-bottom: 20px; }
 .color-picker { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
 .color-choice { height: 30px; padding: 3px; display: grid; place-items: center; border: 1px solid #dce2df; border-radius: 8px; background: #fff; cursor: pointer; transition: .15s ease; }

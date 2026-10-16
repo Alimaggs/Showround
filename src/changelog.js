@@ -7,6 +7,17 @@
 
 export const releases = [
   {
+    version: '0.6.0',
+    date: '2026-10-16',
+    title: 'More icons, and pick where people look',
+    notes: [
+      'Forty icons to choose from, up from twelve, including books, seating, coffee, plants and flowers. A search box helps you find the one you want.',
+      'Starting view sets which way visitors face when your tour opens. Turn the scene to the angle you want and save it.',
+      'Each hotspot can now choose which way visitors face when they arrive in the next room.',
+      'Tours you exported earlier open just as they did before.',
+    ],
+  },
+  {
     version: '0.5.0',
     date: '2026-09-14',
     title: 'Choose your pin colours',
