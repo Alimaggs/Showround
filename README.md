@@ -36,6 +36,15 @@ hotspot as `targetView`, and changing the hotspot's target clears it.
 Both are `{ "yaw": degrees, "pitch": degrees }`. Opening a scene any other
 way, from the scene list or the location menu, uses the default view.
 
+## Scene names
+
+A scene starts out named after the file it was made from. The pencil on its
+row in the Scenes list, or a double-click on the name, renames it. The file
+name follows: the scene name is turned into a lower-case, hyphenated file name
+with the original extension, so "Main bedroom & ensuite" exports as
+`media/main-bedroom-and-ensuite.jpg`. Hotspots link by scene id rather than
+by name, so renaming never breaks a link.
+
 ## Pin colours
 
 Colour is a property of the tour rather than of each interaction: one colour

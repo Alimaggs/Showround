@@ -7,6 +7,15 @@
 
 export const releases = [
   {
+    version: '0.7.0',
+    date: '2026-10-16',
+    title: 'Rename your scenes',
+    notes: [
+      'Rename a scene from the Scenes list with the pencil button, or double-click its name. Press Enter to save or Esc to cancel.',
+      'The file name follows, so a scene called Front garden exports as front-garden.jpg. Hotspots that link to the scene keep working.',
+    ],
+  },
+  {
     version: '0.6.0',
     date: '2026-10-16',
     title: 'More icons, and pick where people look',

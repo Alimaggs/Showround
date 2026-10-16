@@ -21,7 +21,7 @@ const icons = {
   compass: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15.6 8.4-2.1 5.1-5.1 2.1 2.1-5.1z"/></svg>',
   settings: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M19 6h1M4 12h3M13 12h7M4 18h9M19 18h1"/><circle cx="16" cy="6" r="2.2"/><circle cx="10" cy="12" r="2.2"/><circle cx="16" cy="18" r="2.2"/></svg>',
   megaphone: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.6v4.8a1.6 1.6 0 0 0 1.6 1.6h2.2l7.6 4.3V3.7L7.8 8H5.6A1.6 1.6 0 0 0 4 9.6z"/><path d="M7.8 16v3a2 2 0 0 0 4 0v-.9M19 9.4a4.2 4.2 0 0 1 0 5.2"/></svg>',
-  more: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>',
+  pencil: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17v3zM14.5 7.5l3 3"/></svg>',
   chevron: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>',
   close: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>',
   trash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5"/></svg>',
@@ -45,6 +45,7 @@ const state = {
   entryView: null,
   // Set while the author is turning the viewer to choose a direction.
   pickingView: null,
+  renamingSceneId: null,
   pendingImport: null,
   renderer: null,
 }
@@ -575,24 +576,96 @@ async function addFiles(files) {
 
 function renderScenes() {
   $('#scene-count').textContent = state.scenes.length
-  $('#scene-list').innerHTML = state.scenes.map((scene, index) => `
-    <button class="scene-item ${scene.id === state.activeSceneId ? 'active' : ''}" data-scene="${scene.id}">
+  $('#scene-list').innerHTML = state.scenes.map((scene, index) => {
+    const thumb = `
       <span class="scene-thumb" ${scene.thumbnail ? `style="background-image:url('${scene.thumbnail}')"` : ''}>
         <span>${isPhotoScene(scene) ? 'Photo' : '360°'}</span>
         <b>${index + 1}</b>
-      </span>
-      <span class="scene-copy">
-        <strong>${escapeHtml(scene.name)}</strong>
-        <small>${sceneMeta(scene)} · ${scene.hotspots.length} interaction${scene.hotspots.length === 1 ? '' : 's'}</small>
-      </span>
-      ${icons.more}
-    </button>
-  `).join('')
+      </span>`
+    const meta = `<small>${sceneMeta(scene)} · ${scene.hotspots.length} interaction${scene.hotspots.length === 1 ? '' : 's'}</small>`
+    // An input cannot sit inside a button, so a row being renamed swaps its
+    // button for a plain container until the name is saved or abandoned.
+    if (scene.id === state.renamingSceneId) {
+      return `
+        <div class="scene-item is-renaming ${scene.id === state.activeSceneId ? 'active' : ''}">
+          <div class="scene-open">
+            ${thumb}
+            <span class="scene-copy">
+              <input class="scene-name-input" data-rename-input="${scene.id}" value="${escapeHtml(scene.name)}" maxlength="${SCENE_NAME_LIMIT}" aria-label="Scene name" spellcheck="false">
+              <small>Enter to save, Esc to cancel</small>
+            </span>
+          </div>
+        </div>`
+    }
+    return `
+      <div class="scene-item ${scene.id === state.activeSceneId ? 'active' : ''}">
+        <button class="scene-open" data-scene="${scene.id}">
+          ${thumb}
+          <span class="scene-copy">
+            <strong>${escapeHtml(scene.name)}</strong>
+            ${meta}
+          </span>
+        </button>
+        <button class="scene-rename" data-rename-scene="${scene.id}" aria-label="Rename ${escapeHtml(scene.name)}" title="Rename">
+          ${icons.pencil}
+        </button>
+      </div>`
+  }).join('')
 
   $('#upload-card').classList.toggle('with-scenes', state.scenes.length > 0)
-  document.querySelectorAll('[data-scene]').forEach((button) => {
-    button.addEventListener('click', () => selectScene(button.dataset.scene))
-  })
+
+  const input = document.querySelector('[data-rename-input]')
+  if (input) {
+    input.focus()
+    input.select()
+  }
+}
+
+const SCENE_NAME_LIMIT = 60
+
+// The file name follows the scene name, so a renamed scene exports as, say,
+// media/front-garden.jpg. It keeps the original extension because that is what
+// tells the browser how to read the file.
+function fileNameFor(name, previousFileName) {
+  const extension = (previousFileName.match(/\.[a-zA-Z0-9]+$/) || [''])[0].toLowerCase()
+  const stem = name
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  return `${stem || 'scene'}${extension}`
+}
+
+function startRenameScene(id) {
+  if (state.previewMode || !state.scenes.some((scene) => scene.id === id)) return
+  state.renamingSceneId = id
+  renderScenes()
+}
+
+function finishRenameScene(save) {
+  const id = state.renamingSceneId
+  if (!id) return
+  const input = document.querySelector('[data-rename-input]')
+  const scene = state.scenes.find((item) => item.id === id)
+  // Cleared before re-rendering so the blur that follows removing the input
+  // finds nothing left to save.
+  state.renamingSceneId = null
+  const name = input?.value.replace(/\s+/g, ' ').trim().slice(0, SCENE_NAME_LIMIT)
+  if (save && scene && name && name !== scene.name) {
+    scene.name = name
+    scene.fileName = fileNameFor(name, scene.fileName)
+    document.querySelectorAll(`option[value="${id}"]`).forEach((option) => { option.textContent = name })
+    if (id === state.activeSceneId) {
+      $('#active-scene-name').textContent = scene.name
+      $('#timeline-title').textContent = scene.name
+      $('#timeline-info').textContent = scene.fileName
+      $('#inspector-overview-title').textContent = scene.name
+    }
+    notify(`Renamed to ${name}`)
+  }
+  renderScenes()
 }
 
 function selectScene(id, view) {
@@ -1325,6 +1398,35 @@ async function exportTour() {
 }
 
 function bindEvents() {
+  const sceneList = $('#scene-list')
+  // Double-clicking a name renames it. The first click re-renders the list,
+  // which stops the browser seeing a dblclick, so the pair is timed here.
+  let lastNameClick = { id: null, at: 0 }
+  sceneList.addEventListener('click', (event) => {
+    const rename = event.target.closest('[data-rename-scene]')
+    if (rename) return startRenameScene(rename.dataset.renameScene)
+    const open = event.target.closest('[data-scene]')
+    if (!open) return
+    const id = open.dataset.scene
+    if (event.target.closest('.scene-copy strong')) {
+      const now = performance.now()
+      if (lastNameClick.id === id && now - lastNameClick.at < 450) {
+        lastNameClick = { id: null, at: 0 }
+        return startRenameScene(id)
+      }
+      lastNameClick = { id, at: now }
+    }
+    selectScene(id)
+  })
+  sceneList.addEventListener('keydown', (event) => {
+    if (!event.target.matches('[data-rename-input]')) return
+    if (event.key === 'Enter') { event.preventDefault(); finishRenameScene(true) }
+    if (event.key === 'Escape') { event.stopPropagation(); finishRenameScene(false) }
+  })
+  sceneList.addEventListener('focusout', (event) => {
+    if (event.target.matches('[data-rename-input]')) finishRenameScene(true)
+  })
+
   const input = $('#media-input')
   ;['#add-scenes', '#upload-card', '#empty-upload'].forEach((selector) => {
     $(selector).addEventListener('click', () => input.click())
